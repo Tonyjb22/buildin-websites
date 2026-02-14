@@ -1,0 +1,62 @@
+# 빌딘 컨텐츠 자동화 - GitHub Actions 워크플로우
+# 매주 월요일 오전 9시(한국시간)에 자동 실행됩니다.
+
+name: 빌딘 주간 컨텐츠 자동화
+
+on:
+  # 매주 월요일 00:00 UTC = 한국시간 09:00
+  schedule:
+    - cron: '0 0 * * 1'
+  
+  # 수동 실행도 가능
+  workflow_dispatch:
+    inputs:
+      command:
+        description: '실행할 명령 (full/collect/analyze)'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - collect
+          - analyze
+          - test
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 자동화 실행
+        env:
+          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
+          NOTION_CONTENT_DB_ID: ${{ secrets.NOTION_CONTENT_DB_ID }}
+          NOTION_WEEKLY_DB_ID: ${{ secrets.NOTION_WEEKLY_DB_ID }}
+          NOTION_ANALYSIS_PAGE_ID: ${{ secrets.NOTION_ANALYSIS_PAGE_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          INSTAGRAM_MAGAZINE_ACCOUNT_ID: ${{ secrets.INSTAGRAM_MAGAZINE_ACCOUNT_ID }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
+          VIEWS_BEST: ${{ secrets.VIEWS_BEST }}
+          VIEWS_HIGH: ${{ secrets.VIEWS_HIGH }}
+          VIEWS_MID: ${{ secrets.VIEWS_MID }}
+          ENGAGEMENT_BEST: ${{ secrets.ENGAGEMENT_BEST }}
+          ENGAGEMENT_HIGH: ${{ secrets.ENGAGEMENT_HIGH }}
+          ENGAGEMENT_MID: ${{ secrets.ENGAGEMENT_MID }}
+        run: |
+          COMMAND="${{ github.event.inputs.command || 'full' }}"
+          echo "🚀 실행 명령: $COMMAND"
+          python main.py $COMMAND
