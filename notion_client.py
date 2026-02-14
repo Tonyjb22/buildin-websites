@@ -204,8 +204,8 @@ class NotionClient:
     # ─── 주간 분석 페이지 생성 ───
 
     def create_weekly_analysis_page(self, parent_page_id, title, blocks):
-        """주간 분석 결과를 Notion 페이지로 생성"""
-        return self._request("POST", "/pages", {
+        """주간 분석 결과를 Notion 페이지로 생성"""
+        return self._request("POST", "/pages", {
             "parent": {"page_id": parent_page_id},
             "properties": {
                 "title": {"title": [{"text": {"content": title}}]}
