@@ -348,5 +348,5 @@ def parse_notion_content(page):
         "comments": get_number("댓글"),
         "shares": get_number("공유"),
         "checked": get_checkbox("점검현황"),
-        "engagement": get_formula_string("D+6 참여..."),
+        "engagement": get_formula_string("D+6 참여율 (%)"),
     }
