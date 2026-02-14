@@ -25,15 +25,15 @@ class Config:
 
     # ── 평가 기준 (4단계: 최상/상/중/하) ──
     # 평가1: 조회수 (바이럴)
-    VIEWS_BEST = int(os.getenv("VIEWS_BEST", "10000"))     # 최상: 알고리즘 노출 성공
-    VIEWS_HIGH = int(os.getenv("VIEWS_HIGH", "3000"))      # 상: 탐색 탭 노출 시작
-    VIEWS_MID = int(os.getenv("VIEWS_MID", "1000"))        # 중: 팔로워 및 해시태그 유입
+    VIEWS_BEST = int(os.getenv("VIEWS_BEST") or "10000")     # 최상: 알고리즘 노출 성공
+    VIEWS_HIGH = int(os.getenv("VIEWS_HIGH") or "3000")      # 상: 탐색 탭 노출 시작
+    VIEWS_MID = int(os.getenv("VIEWS_MID") or "1000")        # 중: 팔로워 및 해시태그 유입
     # 하: 1000 미만 → 노출 실패
 
     # 평가2: 참여율 (컨텐츠 매력도)
-    ENGAGEMENT_BEST = float(os.getenv("ENGAGEMENT_BEST", "5.0"))   # 최상: 찐팬 형성
-    ENGAGEMENT_HIGH = float(os.getenv("ENGAGEMENT_HIGH", "3.0"))   # 상: 타겟 안정적 반응
-    ENGAGEMENT_MID = float(os.getenv("ENGAGEMENT_MID", "1.0"))     # 중: 나쁘지 않음
+    ENGAGEMENT_BEST = float(os.getenv("ENGAGEMENT_BEST") or "5.0")   # 최상: 찐팬 형성
+    ENGAGEMENT_HIGH = float(os.getenv("ENGAGEMENT_HIGH") or "3.0")   # 상: 타겟 안정적 반응
+    ENGAGEMENT_MID = float(os.getenv("ENGAGEMENT_MID") or "1.0")     # 중: 나쁘지 않음
     # 하: 1% 미만 → 이탈률 높음
 
     # ── 총평 매트릭스 (조회수-참여율 조합 → 액션플랜) ──
