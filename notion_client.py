@@ -168,12 +168,12 @@ class NotionClient:
         """
         properties = {
             "주차": {"title": [{"text": {"content": week_data["week_label"]}}]},
-            "컨텐츠 수": {"number": week_data["content_count"]},
-            "조회수": {"number": week_data["total_views"]},
-            "좋아요": {"number": week_data["total_likes"]},
-            "저장": {"number": week_data["total_saves"]},
-            "댓글": {"number": week_data["total_comments"]},
-            "공유": {"number": week_data["total_shares"]},
+            "# 컨텐츠 수": {"number": week_data["content_count"]},
+            "# 조회수": {"number": week_data["total_views"]},
+            "# 좋아요": {"number": week_data["total_likes"]},
+            "# 저장": {"number": week_data["total_saves"]},
+            "# 댓글": {"number": week_data["total_comments"]},
+            "# 공유": {"number": week_data["total_shares"]},
         }
 
         return self._request("POST", "/pages", {
@@ -185,12 +185,12 @@ class NotionClient:
         """주차별 정리 항목 업데이트"""
         properties = {}
         field_map = {
-            "content_count": "컨텐츠 수",
-            "total_views": "조회수",
-            "total_likes": "좋아요",
-            "total_saves": "저장",
-            "total_comments": "댓글",
-            "total_shares": "공유",
+            "content_count": "# 컨텐츠 수",
+            "total_views": "# 조회수",
+            "total_likes": "# 좋아요",
+            "total_saves": "# 저장",
+            "total_comments": "# 댓글",
+            "total_shares": "# 공유",
         }
         for key, notion_name in field_map.items():
             if key in week_data:
@@ -348,5 +348,5 @@ def parse_notion_content(page):
         "comments": get_number("댓글"),
         "shares": get_number("공유"),
         "checked": get_checkbox("점검현황"),
-        "engagement": get_formula_string("D+6 참여율 (%)"),
+        "engagement": get_formula_string("D+6 참여..."),
     }
