@@ -1,18 +1,19 @@
 # 빌딘 컨텐츠 자동화 - GitHub Actions 워크플로우
-# 매주 월요일 오전 9시(한국시간)에 자동 실행됩니다.
+# 1) 매일 오전 10시(KST): 새 컨텐츠 수집 + D+6 수치 업데이트
+# 2) 매주 일요일 오전 9시(KST): 주간 분석 리포트 생성
 
 name: 빌딘 주간 컨텐츠 자동화
 
 on:
-  # 매주 월요일 00:00 UTC = 한국시간 09:00
+  # 매일 01:00 UTC = 한국시간 10:00 (새 컨텐츠 수집 + D+6 수치)
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 1 * * *'
   
-  # 수동 실행도 가능
+  # 수동 실행
   workflow_dispatch:
     inputs:
       command:
-        description: '실행할 명령 (full/collect/analyze)'
+        description: '실행할 명령 (full/collect/analyze/test)'
         required: true
         default: 'full'
         type: choice
@@ -50,13 +51,18 @@ jobs:
           INSTAGRAM_MAGAZINE_ACCOUNT_ID: ${{ secrets.INSTAGRAM_MAGAZINE_ACCOUNT_ID }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
-          VIEWS_BEST: ${{ secrets.VIEWS_BEST }}
-          VIEWS_HIGH: ${{ secrets.VIEWS_HIGH }}
-          VIEWS_MID: ${{ secrets.VIEWS_MID }}
-          ENGAGEMENT_BEST: ${{ secrets.ENGAGEMENT_BEST }}
-          ENGAGEMENT_HIGH: ${{ secrets.ENGAGEMENT_HIGH }}
-          ENGAGEMENT_MID: ${{ secrets.ENGAGEMENT_MID }}
         run: |
-          COMMAND="${{ github.event.inputs.command || 'full' }}"
+          # 수동 실행이면 입력값 사용, 스케줄이면 요일에 따라 결정
+          if [ -n "${{ github.event.inputs.command }}" ]; then
+            COMMAND="${{ github.event.inputs.command }}"
+          else
+            # 일요일(0)이면 full, 나머지는 collect
+            DAY_OF_WEEK=$(date -u +%u)
+            if [ "$DAY_OF_WEEK" = "7" ]; then
+              COMMAND="full"
+            else
+              COMMAND="collect"
+            fi
+          fi
           echo "🚀 실행 명령: $COMMAND"
           python main.py $COMMAND
