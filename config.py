@@ -23,6 +23,11 @@ class Config:
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
     YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID")
 
+    # ── YouTube Analytics OAuth ──
+    YOUTUBE_OAUTH_CLIENT_ID = os.getenv("YOUTUBE_OAUTH_CLIENT_ID", "")
+    YOUTUBE_OAUTH_CLIENT_SECRET = os.getenv("YOUTUBE_OAUTH_CLIENT_SECRET", "")
+    YOUTUBE_OAUTH_REFRESH_TOKEN = os.getenv("YOUTUBE_OAUTH_REFRESH_TOKEN", "")
+
     # ── 평가 기준 (4단계: 최상/상/중/하) ──
     # 평가1: 조회수 (바이럴)
     VIEWS_BEST = int(os.getenv("VIEWS_BEST") or "10000")     # 최상: 알고리즘 노출 성공

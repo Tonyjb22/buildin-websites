@@ -177,6 +177,14 @@ def run_test():
     else:
         print("⚠️ YOUTUBE_API_KEY가 설정되지 않았습니다")
 
+    # YouTube Analytics
+    print("\n── YouTube Analytics ──")
+    if Config.YOUTUBE_OAUTH_REFRESH_TOKEN:
+        from youtube_analytics import test_analytics_connection
+        test_analytics_connection()
+    else:
+        print("⚠️ YOUTUBE_OAUTH_REFRESH_TOKEN이 설정되지 않았습니다")
+
     print("\n🔍 테스트 완료!")
 
 

@@ -11,6 +11,18 @@ from notion_client import NotionClient, parse_notion_content
 class WeeklyAnalyzer:
     def __init__(self):
         self.notion = NotionClient()
+        self.analytics = None
+        
+        # YouTube Analytics 사용 가능 여부 확인
+        if Config.YOUTUBE_OAUTH_REFRESH_TOKEN:
+            try:
+                from youtube_analytics import YouTubeAnalyticsCollector
+                self.analytics = YouTubeAnalyticsCollector()
+                print("📊 YouTube Analytics 연동 활성화")
+            except Exception as e:
+                print(f"⚠️ YouTube Analytics 비활성: {e}")
+        else:
+            print("⏭️ YouTube Analytics 미설정 - 기본 분석만 실행")
 
     def get_week_range(self, target_date=None):
         """주차 날짜 범위 계산 (월~일 기준)"""
@@ -347,17 +359,11 @@ class WeeklyAnalyzer:
                 ])
             blocks.append(nc.table_block(rating_rows))
 
-        # ── ✍️ 수동 분석 영역 (실무자 작성) ──
+        # ── ✍️ 컨텐츠 상세 분석 ──
         blocks.append(nc.divider_block())
-        blocks.append(nc.heading_block("✍️ 컨텐츠 상세 분석 (수동)", level=2))
-        blocks.append(nc.callout_block(
-            "⚠️ 아래는 실무자가 직접 작성하는 영역입니다.\n"
-            "각 컨텐츠별로: 영상 캡쳐, 좋았던 점, 개선점, 이탈 구간 등을 기록하세요.\n"
-            "(YouTube Analytics 연동 시 시청 지속시간, 이탈 구간, 시청자 연령 데이터가 자동 추가됩니다)",
-            emoji="✍️"
-        ))
+        blocks.append(nc.heading_block("✍️ 컨텐츠 상세 분석", level=2))
         
-        # 개별 컨텐츠 분석 템플릿
+        # 개별 컨텐츠 분석
         all_content_sorted = sorted(
             [item for item in top_content],
             key=lambda x: x.get("views", 0), reverse=True
@@ -366,11 +372,85 @@ class WeeklyAnalyzer:
             link = item.get("content_link", "")
             ch = item.get("channel_type", "")
             views = item.get("views", 0)
+            video_id = None
+            upload_date = item.get("upload_date", "")
+            
             blocks.append(nc.heading_block(f"[{ch}] 조회 {views:,}회", level=3))
             blocks.append(nc.paragraph_block(f"🔗 {link}"))
+
+            # YouTube Analytics 데이터 삽입
+            if self.analytics and "youtube.com" in link and upload_date:
+                # video_id 추출
+                import re
+                match = re.search(r'(?:v=|shorts/)([a-zA-Z0-9_-]{11})', link)
+                if match:
+                    video_id = match.group(1)
+                    try:
+                        analysis = self.analytics.get_full_video_analysis(video_id, upload_date)
+                        
+                        # 기본 지표
+                        basic = analysis.get("basic")
+                        if basic:
+                            avg_dur = basic.get("averageViewDuration", 0)
+                            avg_pct = basic.get("averageViewPercentage", 0)
+                            mins_watched = basic.get("estimatedMinutesWatched", 0)
+                            subs_gained = basic.get("subscribersGained", 0)
+                            
+                            blocks.append(nc.callout_block(
+                                f"⏱ 평균 시청 시간: {avg_dur}초 ({avg_pct:.1f}%)\n"
+                                f"📺 총 시청 시간: {round(mins_watched)}분\n"
+                                f"👥 구독자 획득: +{subs_gained}명",
+                                emoji="📊"
+                            ))
+                        
+                        # 시청자 유지율 & 이탈 구간
+                        retention = analysis.get("retention")
+                        if retention:
+                            ret_text = f"📉 평균 유지율: {retention['avg_view_pct']}%\n"
+                            if retention.get("drop_points"):
+                                ret_text += "⚠️ 이탈 구간:\n"
+                                for dp in sorted(retention["drop_points"], key=lambda x: -x["drop"])[:3]:
+                                    ret_text += f"  → {dp['position_pct']}% 지점: {dp['drop']}% 급감 ({dp['severity']})\n"
+                            else:
+                                ret_text += "✅ 특이 이탈 구간 없음"
+                            blocks.append(nc.callout_block(ret_text, emoji="📉"))
+                        
+                        # 트래픽 소스
+                        traffic = analysis.get("traffic_sources")
+                        if traffic:
+                            traffic_rows = [["소스", "조회수", "비율"]]
+                            for src in traffic[:5]:
+                                traffic_rows.append([
+                                    src["source"],
+                                    f"{src['views']:,}",
+                                    f"{src['pct']}%",
+                                ])
+                            blocks.append(nc.paragraph_block("🔀 트래픽 소스", bold=True))
+                            blocks.append(nc.table_block(traffic_rows))
+                        
+                        # 시청자 인구통계
+                        demo = analysis.get("demographics")
+                        if demo and demo.get("age_groups"):
+                            demo_text = f"👤 주요 시청층: {demo['top_gender']} {demo['top_age_group']}세\n"
+                            demo_text += "연령 분포: "
+                            demo_text += " | ".join([f"{age}: {pct}%" for age, pct in demo["age_groups"].items()])
+                            demo_text += f"\n성별: 남성 {demo['gender'].get('male', 0)}% / 여성 {demo['gender'].get('female', 0)}%"
+                            blocks.append(nc.callout_block(demo_text, emoji="👥"))
+                        
+                        # 구독자 비율
+                        subs = analysis.get("subscriber_status")
+                        if subs:
+                            blocks.append(nc.paragraph_block(
+                                f"🔔 구독자: {subs['subscribed']}% / 비구독자: {subs['unsubscribed']}%"
+                            ))
+                        
+                    except Exception as e:
+                        blocks.append(nc.paragraph_block(f"⚠️ Analytics 데이터 수집 실패: {str(e)[:100]}"))
+            
+            # 수동 분석 영역 (Analytics 유무와 관계없이 항상 포함)
             blocks.append(nc.paragraph_block("✅ 좋았던 점: (작성 필요)"))
             blocks.append(nc.paragraph_block("❌ 개선점: (작성 필요)"))
-            blocks.append(nc.paragraph_block("📌 이탈 구간/원인: (작성 필요)"))
+            blocks.append(nc.paragraph_block("📌 이탈 원인 분석: (작성 필요)"))
             blocks.append(nc.paragraph_block(""))
 
         # ── 다음주 기획 방향 ──
