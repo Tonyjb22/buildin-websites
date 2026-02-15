@@ -2,6 +2,7 @@
 빌딘 컨텐츠 자동화 시스템 - YouTube 데이터 수집기
 YouTube Data API v3를 사용하여 채널의 동영상 데이터를 수집합니다.
 """
+import re
 import requests
 from datetime import datetime, timedelta
 from config import Config
@@ -57,7 +58,6 @@ class YouTubeCollector:
         if not video_ids:
             return []
 
-        # 최대 50개씩 배치 처리
         all_details = []
         for i in range(0, len(video_ids), 50):
             batch = video_ids[i:i+50]
@@ -71,7 +71,6 @@ class YouTubeCollector:
 
     def _parse_duration(self, duration_str):
         """ISO 8601 duration을 초 단위로 변환 (예: PT1M30S → 90)"""
-        import re
         match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration_str)
         if not match:
             return 0
@@ -84,21 +83,103 @@ class YouTubeCollector:
         """숏츠 여부 판단 (60초 이하)"""
         return duration_seconds <= 60
 
+    def _extract_video_id(self, url):
+        """YouTube URL에서 video ID 추출"""
+        patterns = [
+            r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})',
+            r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})',
+            r'youtube\.com/embed/([a-zA-Z0-9_-]{11})',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
+
+    def collect_new_content(self, days_back=2):
+        """새 컨텐츠 수집 (수치 없이 - 항목 등록용)
+        
+        Returns:
+            list[dict]: 링크, 날짜, 채널유형만 포함된 데이터
+        """
+        print(f"📺 YouTube 새 컨텐츠 수집 중 (최근 {days_back}일)...")
+
+        recent_videos = self.get_recent_videos(days_back=days_back)
+        if not recent_videos:
+            print("📺 YouTube: 최근 업로드된 동영상이 없습니다.")
+            return []
+
+        video_ids = [v["video_id"] for v in recent_videos]
+        details = self.get_video_details(video_ids)
+
+        all_content = []
+        for detail in details:
+            video_id = detail["id"]
+            content_details = detail.get("contentDetails", {})
+            snippet = detail.get("snippet", {})
+
+            duration = self._parse_duration(content_details.get("duration", "PT0S"))
+            is_shorts = self._is_shorts(duration)
+            channel_type = "유튜브 숏츠" if is_shorts else "유튜브 영상"
+
+            if is_shorts:
+                full_link = f"https://www.youtube.com/shorts/{video_id}"
+            else:
+                full_link = f"https://www.youtube.com/watch?v={video_id}"
+
+            published = snippet.get("publishedAt", "")[:10]
+
+            content = {
+                "upload_date": published,
+                "route": "빌딘 오피셜",
+                "content_link": full_link,
+                "channel_type": channel_type,
+                "title": snippet.get("title", ""),
+                "platform": "youtube",
+                "video_id": video_id,
+            }
+            all_content.append(content)
+            print(f"  ✅ [{channel_type}] {snippet.get('title', '')[:40]}...")
+
+        print(f"📺 YouTube 총 {len(all_content)}개 새 컨텐츠 확인")
+        return all_content
+
+    def get_metrics_for_url(self, url):
+        """특정 YouTube URL의 D+6 수치 가져오기
+        
+        Returns:
+            dict: {views, likes, comments} 또는 None
+        """
+        video_id = self._extract_video_id(url)
+        if not video_id:
+            return None
+
+        details = self.get_video_details([video_id])
+        if not details:
+            return None
+
+        stats = details[0].get("statistics", {})
+        return {
+            "views": int(stats.get("viewCount", 0)),
+            "likes": int(stats.get("likeCount", 0)),
+            "saves": 0,  # YouTube API에서 저장 수 미제공
+            "comments": int(stats.get("commentCount", 0)),
+            "shares": 0,  # Analytics API 필요
+        }
+
     def collect_weekly_data(self, days_back=7):
-        """최근 N일간의 유튜브 데이터 수집
+        """최근 N일간의 유튜브 데이터 수집 (수치 포함 - 호환용)
         
         Returns:
             list[dict]: 수집된 컨텐츠 데이터 리스트
         """
         print(f"📺 YouTube 데이터 수집 중...")
 
-        # 1. 최근 동영상 검색
         recent_videos = self.get_recent_videos(days_back=days_back)
         if not recent_videos:
             print("📺 YouTube: 최근 업로드된 동영상이 없습니다.")
             return []
 
-        # 2. 상세 정보 조회
         video_ids = [v["video_id"] for v in recent_videos]
         details = self.get_video_details(video_ids)
 
@@ -109,33 +190,27 @@ class YouTubeCollector:
             content_details = detail.get("contentDetails", {})
             snippet = detail.get("snippet", {})
 
-            # 숏츠 여부 판단
             duration = self._parse_duration(content_details.get("duration", "PT0S"))
             is_shorts = self._is_shorts(duration)
+            channel_type = "유튜브 숏츠" if is_shorts else "유튜브 영상"
 
-            # 채널 유형 결정
-            channel_type = "유튜브 숏츠" if is_shorts else "유튜브 롱폼"
-
-            # 링크 생성
             if is_shorts:
-                link = f"youtube.com/sho...{video_id[:6]}"
                 full_link = f"https://www.youtube.com/shorts/{video_id}"
             else:
-                link = f"youtube.com/wat...{video_id[:6]}"
                 full_link = f"https://www.youtube.com/watch?v={video_id}"
 
             published = snippet.get("publishedAt", "")[:10]
 
             content = {
                 "upload_date": published,
-                "route": "빌딘 오피셜",  # 기본값, 필요시 수정
+                "route": "빌딘 오피셜",
                 "content_link": full_link,
                 "channel_type": channel_type,
                 "views": int(stats.get("viewCount", 0)),
                 "likes": int(stats.get("likeCount", 0)),
-                "saves": 0,  # YouTube API에서 저장 수 미제공
+                "saves": 0,
                 "comments": int(stats.get("commentCount", 0)),
-                "shares": 0,  # YouTube API에서 공유 수 미제공 (Analytics API 필요)
+                "shares": 0,
                 "platform": "youtube",
                 "video_id": video_id,
                 "title": snippet.get("title", ""),

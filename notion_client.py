@@ -66,20 +66,7 @@ class NotionClient:
         return all_results
 
     def create_content_entry(self, entry_data):
-        """컨텐츠 목록 DB에 새 항목 추가
-        
-        entry_data = {
-            "upload_date": "2026-02-14",
-            "route": "빌딘 오피셜",
-            "content_link": "https://...",
-            "channel_type": "인스타그램 릴스",
-            "views": 500,
-            "likes": 10,
-            "saves": 5,
-            "comments": 2,
-            "shares": 1,
-        }
-        """
+        """컨텐츠 목록 DB에 새 항목 추가"""
         properties = {
             "업로드 일": {"date": {"start": entry_data["upload_date"]}},
             "경로(계정)": {"select": {"name": entry_data["route"]}},
@@ -87,7 +74,6 @@ class NotionClient:
             "채널/유형": {"select": {"name": entry_data["channel_type"]}},
         }
 
-        # 숫자 필드 (있는 경우에만 추가)
         num_fields = {
             "조회수": "views",
             "좋아요": "likes",
@@ -119,7 +105,6 @@ class NotionClient:
             if key in updates and updates[key] is not None:
                 properties[notion_name] = {"number": updates[key]}
 
-        # 점검현황 체크
         if "checked" in updates:
             properties["점검현황"] = {"checkbox": updates["checked"]}
 
@@ -153,19 +138,7 @@ class NotionClient:
         return data.get("results", [])
 
     def create_weekly_entry(self, week_data):
-        """주차별 정리 항목 생성
-        
-        week_data = {
-            "week_label": "2/2-2/8",
-            "content_count": 24,
-            "total_views": 8219,
-            "total_likes": 146,
-            "total_saves": 24,
-            "total_comments": 20,
-            "total_shares": 12,
-            "engagement_rate": 2.37,
-        }
-        """
+        """주차별 정리 항목 생성 (수치만, 블록 없음)"""
         properties = {
             "주차": {"title": [{"text": {"content": week_data["week_label"]}}]},
             "컨텐츠 수": {"number": week_data["content_count"]},
@@ -182,7 +155,7 @@ class NotionClient:
         })
 
     def update_weekly_entry(self, page_id, week_data):
-        """주차별 정리 항목 업데이트"""
+        """주차별 정리 항목 업데이트 (수치 갱신)"""
         properties = {}
         field_map = {
             "content_count": "컨텐츠 수",
@@ -204,12 +177,30 @@ class NotionClient:
     # ─── 주간 분석 페이지 생성 ───
 
     def create_weekly_analysis_page(self, parent_db_id, title, blocks):
-        """주간 분석 결과를 Notion DB의 새 항목으로 생성"""
+        """주간 분석 결과를 Notion DB의 새 항목으로 생성 (블록만)"""
         return self._request("POST", "/pages", {
-            "parent": {"database_id": parent_db_id},  # ✅ page_id가 아니라 database_id 여야 합니다!
+            "parent": {"database_id": parent_db_id},
             "properties": {
-                "주차": {"title": [{"text": {"content": title}}]}  # ✅ title이 아니라 "이름" 이어야 합니다!
+                "주차": {"title": [{"text": {"content": title}}]}
             },
+            "children": blocks,
+        })
+
+    def create_weekly_analysis_page_with_numbers(self, parent_db_id, title, week_data, blocks):
+        """주간 분석 페이지 생성 (수치 + 분석 블록 모두 포함)"""
+        properties = {
+            "주차": {"title": [{"text": {"content": title}}]},
+            "컨텐츠 수": {"number": week_data.get("content_count", 0)},
+            "조회수": {"number": week_data.get("total_views", 0)},
+            "좋아요": {"number": week_data.get("total_likes", 0)},
+            "저장": {"number": week_data.get("total_saves", 0)},
+            "댓글": {"number": week_data.get("total_comments", 0)},
+            "공유": {"number": week_data.get("total_shares", 0)},
+        }
+
+        return self._request("POST", "/pages", {
+            "parent": {"database_id": parent_db_id},
+            "properties": properties,
             "children": blocks,
         })
 
@@ -277,9 +268,7 @@ class NotionClient:
 
     @staticmethod
     def table_block(rows, has_header=True):
-        """테이블 블록 생성
-        rows = [["헤더1", "헤더2"], ["값1", "값2"], ...]
-        """
+        """테이블 블록 생성"""
         table_rows = []
         for row in rows:
             cells = []
