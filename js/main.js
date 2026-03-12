@@ -38,26 +38,68 @@ document.querySelectorAll('.fade-in').forEach(el => {
   observer.observe(el);
 });
 
-// Contact form handler (mailto fallback)
+// ─── EmailJS Configuration ───
+// TODO: Replace these with your actual EmailJS credentials
+// 1. Sign up at https://www.emailjs.com (free)
+// 2. Add an Email Service (connect info@daybio.co.kr)
+// 3. Create an Email Template
+// 4. Copy your Service ID, Template ID, and Public Key below
+const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID = 'YOUR_SERVICE_ID';
+const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
+
+// Initialize EmailJS
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+// Contact form handler
 const contactForm = document.getElementById('contactForm');
 if (contactForm) {
   contactForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const name = document.getElementById('name').value;
-    const email = document.getElementById('email').value;
-    const company = document.getElementById('company').value;
-    const inquiry = document.getElementById('inquiry').value;
-    const message = document.getElementById('message').value;
 
-    const subject = encodeURIComponent('Business Inquiry from ' + name + (company ? ' (' + company + ')' : ''));
-    const body = encodeURIComponent(
-      'Name: ' + name + '\n' +
-      'Email: ' + email + '\n' +
-      'Company: ' + company + '\n' +
-      'Inquiry Type: ' + inquiry + '\n\n' +
-      'Message:\n' + message
-    );
+    const submitBtn = contactForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Sending...';
+    submitBtn.disabled = true;
 
-    window.location.href = 'mailto:info@daybio.com?subject=' + subject + '&body=' + body;
+    const templateParams = {
+      from_name: document.getElementById('name').value,
+      from_email: document.getElementById('email').value,
+      company: document.getElementById('company').value,
+      inquiry_type: document.getElementById('inquiry').value,
+      message: document.getElementById('message').value
+    };
+
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+      .then(() => {
+        showFormMessage('Thank you! Your inquiry has been sent successfully.', 'success');
+        contactForm.reset();
+      })
+      .catch(() => {
+        showFormMessage('Failed to send. Please email us directly at info@daybio.co.kr', 'error');
+      })
+      .finally(() => {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      });
   });
+}
+
+function showFormMessage(text, type) {
+  let msgEl = document.getElementById('formMessage');
+  if (!msgEl) {
+    msgEl = document.createElement('div');
+    msgEl.id = 'formMessage';
+    contactForm.appendChild(msgEl);
+  }
+  msgEl.textContent = text;
+  msgEl.style.cssText = 'padding:12px 16px;border-radius:8px;margin-top:16px;font-size:14px;text-align:center;';
+  if (type === 'success') {
+    msgEl.style.background = '#e8f5e9';
+    msgEl.style.color = '#2e7d32';
+  } else {
+    msgEl.style.background = '#fce4ec';
+    msgEl.style.color = '#c62828';
+  }
+  setTimeout(() => msgEl.remove(), 6000);
 }
