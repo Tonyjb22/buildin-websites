@@ -41,7 +41,7 @@ document.querySelectorAll('.fade-in').forEach(el => {
 // ─── EmailJS Configuration ───
 // TODO: Replace these with your actual EmailJS credentials
 // 1. Sign up at https://www.emailjs.com (free)
-// 2. Add an Email Service (connect info@daybio.com)
+// 2. Add an Email Service (connect info@daybio.co.kr)
 // 3. Create an Email Template
 // 4. Copy your Service ID, Template ID, and Public Key below
 const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY';
@@ -76,7 +76,7 @@ if (contactForm) {
         contactForm.reset();
       })
       .catch(() => {
-        showFormMessage('Failed to send. Please email us directly at info@daybio.com', 'error');
+        showFormMessage('Failed to send. Please email us directly at info@daybio.co.kr', 'error');
       })
       .finally(() => {
         submitBtn.textContent = originalText;
